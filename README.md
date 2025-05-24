@@ -1,218 +1,228 @@
-# ChickenTinder 🍗
+# ChickenTinder 🐔❤️
 
-A group restaurant matching app where friends swipe on local restaurants together. When everyone in the group swipes right on the same restaurant, it's a match! After 3 matches, the session ends and shows the results.
+A group restaurant matching app where 2+ people swipe on restaurants together, requiring unanimous matches to find the perfect dining spot for everyone.
 
-## Features
+## 🚀 Features
 
-- **Group Swiping**: Create or join groups to swipe on restaurants together
-- **Real-time Sync**: Live updates when group members join and swipe
-- **Smart Matching**: Requires unanimous approval for matches
-- **Restaurant Discovery**: Powered by Google Places and Yelp APIs
-- **Location-based**: Find restaurants near your group
-- **Dietary Preferences**: Filter by dietary restrictions and preferences
-- **Beautiful UI**: Modern, smooth animations with React Native Reanimated
+- **Group Creation & Management**: Create groups and invite friends
+- **Real-time Swiping**: Synchronized swiping experience with Socket.io
+- **Unanimous Matching**: Only restaurants that everyone likes become matches
+- **Location-based Search**: Find restaurants near your location
+- **Price & Cuisine Filtering**: Filter by price range and cuisine preferences
+- **Live Session Management**: Real-time updates during swiping sessions
 
-## Tech Stack
+## 🏗️ Architecture
 
-### Frontend (Mobile App)
-- **React Native** with Expo
-- **Expo Router** for navigation
-- **React Native Reanimated** for smooth animations
-- **React Native Gesture Handler** for swipe gestures
-- **Socket.io Client** for real-time communication
-- **AsyncStorage** for local data persistence
+### Backend (Node.js + TypeScript)
+- **Framework**: Express.js with TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: JWT tokens
+- **Real-time**: Socket.io for live sessions
+- **API**: RESTful endpoints for all operations
 
-### Backend (API Server)
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **Socket.io** for real-time features
-- **PostgreSQL** with Prisma ORM
-- **JWT** for authentication
-- **Google Places API** for restaurant data
-- **Yelp Fusion API** for additional restaurant info
+### Mobile App (React Native + Expo)
+- **Framework**: React Native with Expo
+- **Navigation**: Expo Router
+- **State Management**: React Context
+- **Real-time**: Socket.io client
+- **UI**: Custom components with gesture handling
 
-## Project Structure
+### Database Schema
+- **Users**: Authentication and preferences
+- **Groups**: Group management and membership
+- **Sessions**: Swiping sessions with location data
+- **Restaurants**: Restaurant data with ratings and details
+- **Swipes**: Individual user swipes
+- **Matches**: Unanimous group matches
 
-```
-chickentinder/
-├── apps/
-│   ├── mobile/          # React Native app
-│   │   ├── app/         # Expo Router pages
-│   │   ├── components/  # Reusable components
-│   │   ├── contexts/    # React contexts
-│   │   ├── services/    # API services
-│   │   └── utils/       # Helper functions
-│   └── backend/         # Node.js server
-│       ├── src/
-│       │   ├── routes/  # API routes
-│       │   ├── services/# Business logic
-│       │   ├── middleware/
-│       │   └── sockets/ # Socket.io handlers
-│       └── prisma/      # Database schema
-└── docs/                # Documentation
-```
-
-## Getting Started
+## 🛠️ Setup & Installation
 
 ### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database
-- Google Places API key
-- Yelp Fusion API key
+- Node.js 18+ 
+- npm or yarn
 - Expo CLI (`npm install -g @expo/cli`)
+- Supabase account
 
-### Backend Setup
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd ChickenTinder
+```
 
-1. **Clone and install dependencies:**
-   ```bash
-   cd apps/backend
-   npm install
-   ```
+### 2. Install Dependencies
+```bash
+npm run install:all
+```
 
-2. **Set up environment variables:**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Fill in your environment variables:
-   ```env
-   DATABASE_URL="postgresql://user:password@localhost:5432/chickentinder"
-   GOOGLE_PLACES_API_KEY="your-google-places-api-key"
-   YELP_API_KEY="your-yelp-api-key"
-   JWT_SECRET="your-jwt-secret-key"
-   PORT=3000
-   ```
+### 3. Backend Setup
 
-3. **Set up the database:**
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
+#### Environment Variables
+Create `apps/backend/.env`:
+```env
+# Database
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+# Authentication
+JWT_SECRET=your_jwt_secret_key
 
-### Mobile App Setup
+# API Keys (Optional)
+GOOGLE_PLACES_API_KEY=your_google_places_key
+YELP_API_KEY=your_yelp_api_key
 
-1. **Install dependencies:**
-   ```bash
-   cd apps/mobile
-   npm install
-   ```
+# Server
+PORT=3000
+FRONTEND_URL=http://localhost:8081
+```
 
-2. **Start the Expo development server:**
-   ```bash
-   npx expo start
-   ```
+#### Database Setup
+The database schema is automatically created in Supabase with the following tables:
+- `users` - User accounts and preferences
+- `groups` - Group information
+- `group_members` - Group membership
+- `sessions` - Swiping sessions
+- `restaurants` - Restaurant data
+- `swipes` - User swipes
+- `matches` - Group matches
 
-3. **Run on device/simulator:**
-   - **iOS**: Press `i` in the terminal or scan QR code with Camera app
-   - **Android**: Press `a` in the terminal or scan QR code with Expo Go app
-   - **Web**: Press `w` in the terminal
+### 4. Start Development
 
-## API Endpoints
+#### Option 1: Start Both Apps
+```bash
+npm run dev
+```
+
+#### Option 2: Start Individually
+```bash
+# Backend
+npm run dev:backend
+
+# Mobile (in another terminal)
+npm run dev:mobile
+```
+
+## 📱 Mobile App Usage
+
+### 1. Authentication
+- Register with email and password
+- Login to existing account
+
+### 2. Groups
+- Create a new group
+- Join existing groups by ID
+- Manage group settings (admin only)
+
+### 3. Swiping Sessions
+- Start a session from a group
+- Set location and preferences
+- Swipe right (like) or left (pass) on restaurants
+- See real-time matches when everyone likes the same place
+
+### 4. Results
+- View matched restaurants
+- Get details like ratings, price, and location
+- Complete the session when ready
+
+## 🔧 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user
 - `POST /api/auth/logout` - Logout user
+- `GET /api/auth/me` - Get current user
+
+### Users
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update profile
+- `GET /api/users/preferences` - Get preferences
+- `PUT /api/users/preferences` - Update preferences
 
 ### Groups
 - `POST /api/groups` - Create group
 - `GET /api/groups` - Get user's groups
 - `GET /api/groups/:id` - Get group details
-- `POST /api/groups/join` - Join group with code
+- `POST /api/groups/:id/join` - Join group
 - `DELETE /api/groups/:id/leave` - Leave group
-- `PATCH /api/groups/:id/settings` - Update group settings
+- `PUT /api/groups/:id/settings` - Update group settings
 
 ### Sessions
 - `POST /api/sessions/start` - Start swiping session
-- `GET /api/sessions/:id/restaurants` - Get restaurants to swipe
-- `POST /api/sessions/:id/swipe` - Record swipe
+- `GET /api/sessions/:id/restaurants` - Get restaurants for session
+- `POST /api/sessions/:id/swipe` - Record a swipe
 - `GET /api/sessions/:id/matches` - Get session matches
 - `POST /api/sessions/:id/complete` - Complete session
 
 ### Restaurants
-- `GET /api/restaurants/search` - Search nearby restaurants
+- `GET /api/restaurants/search` - Search restaurants
 - `GET /api/restaurants/:id` - Get restaurant details
 
-## Socket.io Events
+## 🔌 Socket.io Events
 
 ### Client → Server
 - `join_session` - Join a group session
 - `leave_session` - Leave current session
-- `swipe` - Send swipe data
+- `swipe` - Send a swipe action
 
 ### Server → Client
-- `members_update` - Group member status update
-- `session_started` - Session has begun
-- `match_found` - New restaurant match
-- `session_complete` - Session finished with results
+- `members_update` - Member status updates
+- `ready_to_start` - All members ready
+- `match_found` - New match discovered
+- `session_complete` - Session finished
 - `user_swiped` - Another user swiped
+- `member_left` - Member left session
+- `error` - Error occurred
 
-## Database Schema
+## 🧪 Testing
 
-The app uses PostgreSQL with Prisma ORM. Key models include:
-
-- **User**: User accounts and preferences
-- **Group**: Swiping groups with settings
-- **GroupMember**: User membership in groups
-- **Session**: Swiping sessions
-- **Restaurant**: Restaurant data from APIs
-- **Swipe**: Individual swipe records
-- **Match**: Matched restaurants
-
-## Development
-
-### Running Tests
+### Backend Health Check
 ```bash
-# Backend tests
-cd apps/backend
-npm test
-
-# Mobile app tests (if configured)
-cd apps/mobile
-npm test
+curl http://localhost:3000/health
 ```
 
-### Building for Production
-
-**Backend:**
+### Test Authentication
 ```bash
-cd apps/backend
-npm run build
-npm start
+# Register
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","displayName":"Test User"}'
+
+# Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
 ```
 
-**Mobile App:**
-```bash
-cd apps/mobile
-npx expo build:android  # or build:ios
-```
+## 🚀 Deployment
 
-## Contributing
+### Backend Deployment
+1. Build the application: `npm run build:backend`
+2. Set environment variables on your hosting platform
+3. Deploy to platforms like Railway, Render, or Heroku
+
+### Mobile App Deployment
+1. Build for production: `npx expo build`
+2. Submit to app stores using Expo Application Services (EAS)
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- Google Places API for restaurant data
-- Yelp Fusion API for additional restaurant information
-- Expo team for the amazing React Native framework
-- Socket.io for real-time communication
+- Supabase for the database and authentication
+- Expo for the mobile development platform
+- Socket.io for real-time functionality
+- The React Native community for excellent libraries
 
 ---
 
-**Happy Swiping!** 🍗✨ 
+**Happy Swiping! 🍽️✨** 

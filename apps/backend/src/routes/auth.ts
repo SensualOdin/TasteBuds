@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
-import { prisma } from '../lib/prisma';
+import { supabaseAdmin } from '../config/supabase';
+import type { User } from '../config/supabase';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ router.post('/register',
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
-    body('name').notEmpty().trim(),
+    body('displayName').notEmpty().trim(),
   ],
   async (req: Request, res: Response) => {
     try {
@@ -20,12 +21,14 @@ router.post('/register',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, name } = req.body;
+      const { email, password, displayName } = req.body;
 
       // Check if user exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
+      const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
 
       if (existingUser) {
         return res.status(400).json({ error: 'User already exists' });
@@ -35,31 +38,40 @@ router.post('/register',
       const hashedPassword = await bcrypt.hash(password, 12);
 
       // Create user
-      const user = await prisma.user.create({
-        data: {
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .insert({
           email,
-          name,
-          // Note: We'll handle password via Supabase Auth in production
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          avatarUrl: true,
-          dietaryPrefs: true,
-          createdAt: true,
-        },
-      });
+          password_hash: hashedPassword,
+          display_name: displayName,
+          price_range_min: 1,
+          price_range_max: 4,
+          distance_preference: 5000,
+        })
+        .select('id, email, display_name, avatar_url, cuisine_preferences, created_at')
+        .single();
+
+      if (error) {
+        console.error('Database error:', error);
+        return res.status(500).json({ error: 'Failed to create user' });
+      }
 
       // Generate JWT
       const token = jwt.sign(
         { userId: user.id },
         process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
       res.status(201).json({
-        user,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+          avatarUrl: user.avatar_url,
+          cuisinePreferences: user.cuisine_preferences,
+          createdAt: user.created_at,
+        },
         token,
       });
     } catch (error) {
@@ -85,32 +97,40 @@ router.post('/login',
       const { email, password } = req.body;
 
       // Find user
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-      if (!user) {
+      if (error || !user) {
         return res.status(400).json({ error: 'Invalid credentials' });
       }
 
-      // For now, we'll use a simple check since we're using Supabase Auth
-      // In production, this would be handled by Supabase
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: 'Invalid credentials' });
+      }
 
       // Generate JWT
       const token = jwt.sign(
         { userId: user.id },
         process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
       res.json({
         user: {
           id: user.id,
           email: user.email,
-          name: user.name,
-          avatarUrl: user.avatarUrl,
-          dietaryPrefs: user.dietaryPrefs,
-          createdAt: user.createdAt,
+          displayName: user.display_name,
+          avatarUrl: user.avatar_url,
+          cuisinePreferences: user.cuisine_preferences,
+          priceRangeMin: user.price_range_min,
+          priceRangeMax: user.price_range_max,
+          distancePreference: user.distance_preference,
+          createdAt: user.created_at,
         },
         token,
       });
@@ -132,23 +152,29 @@ router.get('/me', async (req: Request, res: Response) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
     
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        dietaryPrefs: true,
-        createdAt: true,
-      },
-    });
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, email, display_name, avatar_url, cuisine_preferences, price_range_min, price_range_max, distance_preference, created_at')
+      .eq('id', decoded.userId)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        avatarUrl: user.avatar_url,
+        cuisinePreferences: user.cuisine_preferences,
+        priceRangeMin: user.price_range_min,
+        priceRangeMax: user.price_range_max,
+        distancePreference: user.distance_preference,
+        createdAt: user.created_at,
+      }
+    });
   } catch (error) {
     console.error('Auth check error:', error);
     res.status(401).json({ error: 'Invalid token' });

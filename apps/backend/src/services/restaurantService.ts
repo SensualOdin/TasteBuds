@@ -1,6 +1,6 @@
 import { Client } from '@googlemaps/google-maps-services-js';
 import axios from 'axios';
-import { prisma } from '../lib/prisma';
+import { supabaseAdmin } from '../config/supabase';
 
 const googleMapsClient = new Client({});
 
@@ -62,25 +62,21 @@ export class RestaurantService {
     const latRange = radius / 69; // Approximate miles to degrees latitude
     const lngRange = radius / (69 * Math.cos(lat * Math.PI / 180)); // Adjust for longitude
 
-    const restaurants = await prisma.restaurant.findMany({
-      where: {
-        latitude: {
-          gte: lat - latRange,
-          lte: lat + latRange,
-        },
-        longitude: {
-          gte: lng - lngRange,
-          lte: lng + lngRange,
-        },
-        priceLevel: {
-          in: priceRange,
-        },
-      },
-      take: 50,
-      orderBy: {
-        rating: 'desc',
-      },
-    });
+    const { data: restaurants, error } = await supabaseAdmin
+      .from('restaurants')
+      .select('*')
+      .gte('latitude', lat - latRange)
+      .lte('latitude', lat + latRange)
+      .gte('longitude', lng - lngRange)
+      .lte('longitude', lng + lngRange)
+      .in('price_level', priceRange)
+      .order('rating', { ascending: false })
+      .limit(50);
+
+    if (error || !restaurants) {
+      console.error('Error fetching restaurants:', error);
+      return [];
+    }
 
     return restaurants.map(restaurant => ({
       ...restaurant,
@@ -137,11 +133,16 @@ export class RestaurantService {
 
       // Save to database
       try {
-        const savedRestaurant = await prisma.restaurant.upsert({
-          where: { placeId: place.place_id },
-          update: restaurantData,
-          create: restaurantData,
-        });
+        const { data: savedRestaurant, error: upsertError } = await supabaseAdmin
+          .from('restaurants')
+          .upsert(restaurantData, { onConflict: 'place_id' })
+          .select()
+          .single();
+
+        if (upsertError) {
+          console.error('Error saving restaurant:', upsertError);
+          continue;
+        }
 
         processedRestaurants.push({
           ...savedRestaurant,

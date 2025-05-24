@@ -1,0 +1,33 @@
+{
+  "name": "chicken-tinder",
+  "version": "1.0.0",
+  "description": "Group restaurant matching app",
+  "private": true,
+  "workspaces": [
+    "apps/backend",
+    "apps/mobile"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:mobile\"",
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:mobile": "cd apps/mobile && npx expo start",
+    "install:all": "npm install && cd apps/backend && npm install && cd ../mobile && npm install",
+    "build:backend": "cd apps/backend && npm run build",
+    "start:backend": "cd apps/backend && npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "nodejs",
+    "typescript",
+    "restaurant",
+    "matching",
+    "group"
+  ],
+  "author": "ChickenTinder Team",
+  "license": "MIT"
+} 

@@ -1,6 +1,6 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { prisma } from '../lib/prisma';
+import { supabaseAdmin } from '../config/supabase';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -11,33 +11,36 @@ router.use(authenticateToken);
 // Get user profile
 router.get('/profile', async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        dietaryPrefs: true,
-        createdAt: true,
-      },
-    });
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, email, display_name, avatar_url, cuisine_preferences, created_at')
+      .eq('id', req.userId!)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        avatarUrl: user.avatar_url,
+        cuisinePreferences: user.cuisine_preferences,
+        createdAt: user.created_at,
+      }
+    });
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Update user profile
-router.patch('/profile',
+router.put('/profile', 
   [
-    body('name').optional().notEmpty().trim(),
+    body('displayName').optional().trim(),
     body('avatarUrl').optional().isURL(),
   ],
   async (req: AuthRequest, res: Response) => {
@@ -49,23 +52,30 @@ router.patch('/profile',
 
       const updates = req.body;
 
-      const user = await prisma.user.update({
-        where: { id: req.userId! },
-        data: updates,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          avatarUrl: true,
-          dietaryPrefs: true,
-          createdAt: true,
-        },
-      });
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .update(updates)
+        .eq('id', req.userId!)
+        .select('id, email, display_name, avatar_url, cuisine_preferences, created_at')
+        .single();
 
-      res.json({ user });
+      if (error || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({ 
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+          avatarUrl: user.avatar_url,
+          cuisinePreferences: user.cuisine_preferences,
+          createdAt: user.created_at,
+        }
+      });
     } catch (error) {
       console.error('Update profile error:', error);
-      res.status(500).json({ error: 'Failed to update profile' });
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 );
@@ -73,28 +83,27 @@ router.patch('/profile',
 // Get user preferences
 router.get('/preferences', async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: {
-        dietaryPrefs: true,
-      },
-    });
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('cuisine_preferences')
+      .eq('id', req.userId!)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ preferences: user.dietaryPrefs });
+    res.json({ preferences: user.cuisine_preferences });
   } catch (error) {
     console.error('Get preferences error:', error);
-    res.status(500).json({ error: 'Failed to fetch preferences' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Update user preferences
-router.patch('/preferences',
+router.put('/preferences',
   [
-    body('dietaryPrefs').isArray(),
+    body('cuisinePreferences').isArray(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -103,25 +112,32 @@ router.patch('/preferences',
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { dietaryPrefs } = req.body;
+      const { cuisinePreferences } = req.body;
 
-      const user = await prisma.user.update({
-        where: { id: req.userId! },
-        data: { dietaryPrefs },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          avatarUrl: true,
-          dietaryPrefs: true,
-          createdAt: true,
-        },
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .update({ cuisine_preferences: cuisinePreferences })
+        .eq('id', req.userId!)
+        .select('id, email, display_name, avatar_url, cuisine_preferences, created_at')
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({ 
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.display_name,
+          avatarUrl: user.avatar_url,
+          cuisinePreferences: user.cuisine_preferences,
+          createdAt: user.created_at,
+        }
       });
-
-      res.json({ user });
     } catch (error) {
       console.error('Update preferences error:', error);
-      res.status(500).json({ error: 'Failed to update preferences' });
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 );

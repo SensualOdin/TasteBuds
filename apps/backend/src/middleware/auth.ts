@@ -1,15 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../lib/prisma';
+import { supabaseAdmin } from '../config/supabase';
 
 export interface AuthRequest extends Request {
   userId?: string;
   user?: {
     id: string;
     email: string;
-    name: string;
+    displayName: string;
     avatarUrl?: string | null;
-    dietaryPrefs: string[];
+    cuisinePreferences: string[];
   };
 }
 
@@ -23,23 +23,24 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
     
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        dietaryPrefs: true,
-      },
-    });
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, email, display_name, avatar_url, cuisine_preferences')
+      .eq('id', decoded.userId)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
     req.userId = user.id;
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      cuisinePreferences: user.cuisine_preferences || [],
+    };
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });

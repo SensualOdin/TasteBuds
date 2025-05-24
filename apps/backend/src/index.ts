@@ -12,7 +12,7 @@ import { groupRoutes } from './routes/groups';
 import { sessionRoutes } from './routes/sessions';
 import { restaurantRoutes } from './routes/restaurants';
 import { setupSocketHandlers } from './sockets';
-import { prisma } from './lib/prisma';
+import { supabase } from './config/supabase';
 
 // Load environment variables
 dotenv.config();
@@ -23,7 +23,7 @@ const server = createServer(app);
 // Initialize Socket.IO
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.FRONTEND_URL || 'http://localhost:8081',
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -32,7 +32,7 @@ const io = new SocketIOServer(server, {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: process.env.FRONTEND_URL || 'http://localhost:8081',
   credentials: true,
 }));
 
@@ -48,8 +48,25 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  try {
+    // Test Supabase connection
+    const { error } = await supabase.from('users').select('count').limit(1);
+    if (error) throw error;
+    
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API Routes
@@ -78,12 +95,12 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.IO ready for connections`);
+  console.log(`📦 Using Supabase as database`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
-  await prisma.$disconnect();
   server.close(() => {
     console.log('Process terminated');
   });
