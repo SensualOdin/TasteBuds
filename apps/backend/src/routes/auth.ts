@@ -2,8 +2,8 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
-import { supabaseAdmin } from '../config/supabase';
-import type { User } from '../config/supabase';
+import { signJWT } from '../utils/jwt';
+import { supabase, type User } from '../config/supabase';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post('/register',
       const { email, password, displayName } = req.body;
 
       // Check if user exists
-      const { data: existingUser } = await supabaseAdmin
+      const { data: existingUser } = await supabase
         .from('users')
         .select('id')
         .eq('email', email)
@@ -38,7 +38,7 @@ router.post('/register',
       const hashedPassword = await bcrypt.hash(password, 12);
 
       // Create user
-      const { data: user, error } = await supabaseAdmin
+      const { data: user, error } = await supabase
         .from('users')
         .insert({
           email,
@@ -57,10 +57,15 @@ router.post('/register',
       }
 
       // Generate JWT
-      const token = jwt.sign(
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET is not configured');
+      }
+      
+      const token = signJWT(
         { userId: user.id },
-        process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        jwtSecret,
+        process.env.JWT_EXPIRES_IN || '7d'
       );
 
       res.status(201).json({
@@ -97,7 +102,7 @@ router.post('/login',
       const { email, password } = req.body;
 
       // Find user
-      const { data: user, error } = await supabaseAdmin
+      const { data: user, error } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
@@ -114,10 +119,15 @@ router.post('/login',
       }
 
       // Generate JWT
-      const token = jwt.sign(
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET is not configured');
+      }
+      
+      const token = signJWT(
         { userId: user.id },
-        process.env.JWT_SECRET!,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        jwtSecret,
+        process.env.JWT_EXPIRES_IN || '7d'
       );
 
       res.json({
@@ -152,7 +162,7 @@ router.get('/me', async (req: Request, res: Response) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
     
-    const { data: user, error } = await supabaseAdmin
+    const { data: user, error } = await supabase
       .from('users')
       .select('id, email, display_name, avatar_url, cuisine_preferences, price_range_min, price_range_max, distance_preference, created_at')
       .eq('id', decoded.userId)

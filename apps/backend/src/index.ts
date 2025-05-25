@@ -23,7 +23,7 @@ const server = createServer(app);
 // Initialize Socket.IO
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+    origin: true, // Allow all origins in development
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -32,7 +32,7 @@ const io = new SocketIOServer(server, {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+  origin: true, // Allow all origins in development
   credentials: true,
 }));
 
