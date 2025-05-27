@@ -1,51 +1,61 @@
 import { Client } from '@googlemaps/google-maps-services-js';
 import axios from 'axios';
 import { supabaseAdmin } from '../config/supabase';
+import { GOOGLE_CONFIG } from '../config/google';
 
 const googleMapsClient = new Client({});
 
 export class RestaurantService {
   async searchNearby(lat: number, lng: number, radius: number, priceRange: number[]) {
     try {
+      console.log('🔍 Restaurant search started:', { lat, lng, radius, priceRange });
+      
       // First check if we have restaurants in our database for this area
       const existingRestaurants = await this.getExistingRestaurants(lat, lng, radius, priceRange);
+      console.log('📊 Existing restaurants found:', existingRestaurants.length);
       
       if (existingRestaurants.length > 10) {
+        console.log('✅ Returning existing restaurants from database');
         return existingRestaurants;
       }
 
-      // Search Google Places
-      const placesResponse = await googleMapsClient.placesNearby({
-        params: {
-          location: { lat, lng },
-          radius: radius * 1609.34, // Convert miles to meters
-          type: 'restaurant',
-          key: process.env.GOOGLE_PLACES_API_KEY!,
-        },
-      });
+      // Use new Places API (Text Search) instead of deprecated nearby search
+      console.log('🌐 Fetching from Google Places API...');
+      const placesResponse = await this.searchWithNewPlacesAPI(lat, lng, radius);
+      console.log('📍 Google Places API returned:', placesResponse.length, 'places');
 
-      // Get Yelp data for cross-reference
-      const yelpResponse = await axios.get('https://api.yelp.com/v3/businesses/search', {
-        headers: {
-          Authorization: `Bearer ${process.env.YELP_API_KEY}`,
-        },
-        params: {
-          latitude: lat,
-          longitude: lng,
-          radius: Math.round(radius * 1609.34),
-          categories: 'restaurants',
-          limit: 50,
-        },
-      });
+      // Get Yelp data for cross-reference if API key is available
+      let yelpBusinesses = [];
+      if (process.env.YELP_API_KEY) {
+        try {
+          const yelpResponse = await axios.get('https://api.yelp.com/v3/businesses/search', {
+            headers: {
+              Authorization: `Bearer ${process.env.YELP_API_KEY}`,
+            },
+            params: {
+              latitude: lat,
+              longitude: lng,
+              radius: Math.round(radius * 1609.34),
+              categories: 'restaurants',
+              limit: 50,
+            },
+          });
+          yelpBusinesses = yelpResponse.data.businesses;
+        } catch (yelpError) {
+          console.log('Yelp API not available, continuing with Google Places only');
+        }
+      }
 
       // Merge and filter data
+      console.log('🔄 Processing and filtering restaurants...');
       const restaurants = await this.mergeAndFilterRestaurants(
-        placesResponse.data.results,
-        yelpResponse.data.businesses,
+        placesResponse,
+        yelpBusinesses,
         priceRange,
         lat,
         lng
       );
+      console.log('✅ Final processed restaurants:', restaurants.length);
 
       return restaurants;
     } catch (error) {
@@ -54,6 +64,58 @@ export class RestaurantService {
       // Fallback to existing restaurants if API fails
       const fallbackRestaurants = await this.getExistingRestaurants(lat, lng, radius, priceRange);
       return fallbackRestaurants;
+    }
+  }
+
+  private async searchWithNewPlacesAPI(lat: number, lng: number, radiusMiles: number) {
+    const radiusMeters = radiusMiles * 1609.34;
+    
+    try {
+      // Use the new Places API Nearby Search as documented
+      const response = await axios.post(
+        'https://places.googleapis.com/v1/places:searchNearby',
+        {
+          includedTypes: ['restaurant'],
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: lat,
+                longitude: lng
+              },
+              radius: radiusMeters
+            }
+          },
+          maxResultCount: 20,
+          languageCode: 'en'
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_CONFIG.API_KEY,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.types,places.websiteUri,places.nationalPhoneNumber,places.regularOpeningHours,places.reviews,places.editorialSummary'
+          }
+        }
+      );
+
+      return response.data.places || [];
+    } catch (newApiError) {
+      console.log('New Places API failed, trying legacy fallback...');
+      
+      // Fallback to legacy API if new one fails
+      try {
+        const legacyResponse = await googleMapsClient.placesNearby({
+          params: {
+            location: { lat, lng },
+            radius: radiusMeters,
+            type: 'restaurant',
+            key: GOOGLE_CONFIG.API_KEY,
+          },
+        });
+        return legacyResponse.data.results;
+      } catch (legacyError) {
+        console.error('Both new and legacy Places API failed:', legacyError);
+        throw legacyError;
+      }
     }
   }
 
@@ -93,34 +155,84 @@ export class RestaurantService {
   ) {
     const processedRestaurants = [];
 
+    console.log('🔄 Processing places:', googlePlaces.length);
+
     for (const place of googlePlaces) {
-      if (!place.rating || place.rating < 3.5) continue;
-      if (!place.price_level || !priceRange.includes(place.price_level)) continue;
+      // Handle both new API format and legacy format
+      const isNewApiFormat = place.displayName && place.location;
+      
+      const rating = isNewApiFormat ? place.rating : place.rating;
+      const rawPriceLevel = isNewApiFormat ? place.priceLevel : place.price_level;
+      const name = isNewApiFormat ? place.displayName?.text : place.name;
+      const address = isNewApiFormat ? place.formattedAddress : place.vicinity;
+      const lat = isNewApiFormat ? place.location?.latitude : place.geometry?.location?.lat;
+      const lng = isNewApiFormat ? place.location?.longitude : place.geometry?.location?.lng;
+      const placeId = isNewApiFormat ? place.id : place.place_id;
+      const types = place.types || [];
+      
+      // Convert new API price level format to numeric
+      let priceLevel = 2; // default to moderate
+      if (isNewApiFormat && rawPriceLevel) {
+        switch (rawPriceLevel) {
+          case 'PRICE_LEVEL_FREE': priceLevel = 0; break;
+          case 'PRICE_LEVEL_INEXPENSIVE': priceLevel = 1; break;
+          case 'PRICE_LEVEL_MODERATE': priceLevel = 2; break;
+          case 'PRICE_LEVEL_EXPENSIVE': priceLevel = 3; break;
+          case 'PRICE_LEVEL_VERY_EXPENSIVE': priceLevel = 4; break;
+          default: priceLevel = 2;
+        }
+      } else if (!isNewApiFormat && rawPriceLevel) {
+        priceLevel = rawPriceLevel;
+      }
+      
+      console.log(`🔍 Processing ${name}: rating=${rating}, priceLevel=${priceLevel} (raw: ${rawPriceLevel}), isNewFormat=${isNewApiFormat}`);
+      
+      if (!rating || rating < 3.5) {
+        console.log(`❌ Filtered out ${name}: rating too low (${rating})`);
+        continue;
+      }
+      if (priceLevel && !priceRange.includes(priceLevel)) {
+        console.log(`❌ Filtered out ${name}: price level ${priceLevel} not in ${priceRange}`);
+        continue;
+      }
 
       // Find matching Yelp business
       const yelpMatch = yelpBusinesses.find(business => 
-        this.isSameRestaurant(place.name, business.name, place.vicinity, business.location?.address1)
+        this.isSameRestaurant(name, business.name, address, business.location?.address1)
       );
 
-      const photoUrls = place.photos ? 
-        place.photos.slice(0, 3).map((photo: any) => 
-          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${process.env.GOOGLE_PLACES_API_KEY}`
-        ) : [];
+      let photoUrls = [];
+      if (place.photos && place.photos.length > 0) {
+        if (isNewApiFormat) {
+          // New API format: use the photo name to construct URL
+          photoUrls = place.photos.slice(0, 3).map((photo: any) => 
+            `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${GOOGLE_CONFIG.API_KEY}`
+          );
+        } else {
+          // Legacy API format
+          photoUrls = place.photos.slice(0, 3).map((photo: any) => 
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${GOOGLE_CONFIG.API_KEY}`
+          );
+        }
+      }
 
       const restaurantData = {
-        placeId: place.place_id,
+        placeId: placeId,
         yelpId: yelpMatch?.id || null,
-        name: place.name,
-        cuisine: this.extractCuisine(place.types, yelpMatch?.categories),
-        priceLevel: place.price_level,
-        rating: yelpMatch?.rating || place.rating,
+        name: name,
+        cuisine: this.extractCuisine(types, yelpMatch?.categories),
+        priceLevel: priceLevel || 2, // Default to $$ if not specified
+        rating: yelpMatch?.rating || rating,
+        userRatingCount: isNewApiFormat ? place.userRatingCount : null,
         photoUrls: photoUrls,
-        address: place.vicinity || yelpMatch?.location?.address1 || '',
-        latitude: place.geometry.location.lat,
-        longitude: place.geometry.location.lng,
-        phone: yelpMatch?.phone || null,
-        website: yelpMatch?.url || null,
-        hours: yelpMatch?.hours || null,
+        address: address || yelpMatch?.location?.address1 || '',
+        latitude: lat,
+        longitude: lng,
+        phone: isNewApiFormat ? place.nationalPhoneNumber : (yelpMatch?.phone || null),
+        website: isNewApiFormat ? place.websiteUri : (yelpMatch?.url || null),
+        hours: isNewApiFormat ? place.regularOpeningHours : (yelpMatch?.hours || null),
+        reviews: isNewApiFormat ? place.reviews : null,
+        editorialSummary: isNewApiFormat ? place.editorialSummary?.text : null,
       };
 
       // Calculate distance
@@ -131,26 +243,20 @@ export class RestaurantService {
         restaurantData.longitude
       );
 
-      // Save to database
-      try {
-        const { data: savedRestaurant, error: upsertError } = await supabaseAdmin
-          .from('restaurants')
-          .upsert(restaurantData, { onConflict: 'place_id' })
-          .select()
-          .single();
+      // Calculate distance
+      const calculatedDistance = this.calculateDistance(
+        userLat,
+        userLng,
+        restaurantData.latitude,
+        restaurantData.longitude
+      );
 
-        if (upsertError) {
-          console.error('Error saving restaurant:', upsertError);
-          continue;
-        }
-
-        processedRestaurants.push({
-          ...savedRestaurant,
-          distance,
-        });
-      } catch (error) {
-        console.error('Error saving restaurant:', error);
-      }
+      // For now, skip database save and return data directly to test API
+      console.log(`✅ Successfully processed: ${name}`);
+      processedRestaurants.push({
+        ...restaurantData,
+        distance: calculatedDistance,
+      });
     }
 
     // Sort by distance and rating

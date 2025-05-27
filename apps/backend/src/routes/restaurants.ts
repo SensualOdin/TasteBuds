@@ -7,8 +7,10 @@ const router = Router();
 const restaurantService = new RestaurantService();
 
 // Search restaurants
-router.get('/search', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/search', async (req: Request, res: Response) => {
   try {
+    console.log('🎯 Restaurant search endpoint hit with query:', req.query);
+    
     const { 
       latitude, 
       longitude, 
@@ -18,15 +20,27 @@ router.get('/search', authenticateToken, async (req: AuthRequest, res: Response)
       cuisine 
     } = req.query;
 
+    console.log('📍 Parsed parameters:', { latitude, longitude, radius, priceLevel });
+
     if (!latitude || !longitude) {
+      console.log('❌ Missing latitude or longitude');
       return res.status(400).json({ error: 'Latitude and longitude are required' });
     }
+
+    // Parse priceLevel parameter - it could be a comma-separated string
+    let priceLevels = [1, 2, 3, 4]; // default
+    if (priceLevel) {
+      const priceLevelStr = String(priceLevel);
+      priceLevels = priceLevelStr.split(',').map(p => parseInt(p.trim()));
+    }
+    
+    console.log('💰 Price levels to search:', priceLevels);
 
     const restaurants = await restaurantService.searchNearby(
       parseFloat(latitude as string),
       parseFloat(longitude as string),
       parseInt(radius as string) / 1609.34, // Convert meters to miles
-      priceLevel ? [parseInt(priceLevel as string)] : [1, 2, 3, 4]
+      priceLevels
     );
 
     res.json({ restaurants });
