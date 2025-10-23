@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { signJWT } from '../utils/jwt';
-import { supabase, type User } from '../config/supabase';
+import { supabaseAdmin, type User } from '../config/supabase';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post('/register',
       const { email, password, displayName } = req.body;
 
       // Check if user exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await supabaseAdmin
         .from('users')
         .select('id')
         .eq('email', email)
@@ -38,7 +38,7 @@ router.post('/register',
       const hashedPassword = await bcrypt.hash(password, 12);
 
       // Create user
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseAdmin
         .from('users')
         .insert({
           email,
@@ -102,7 +102,7 @@ router.post('/login',
       const { email, password } = req.body;
 
       // Find user
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseAdmin
         .from('users')
         .select('*')
         .eq('email', email)
@@ -162,7 +162,7 @@ router.get('/me', async (req: Request, res: Response) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
     
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('id, email, display_name, avatar_url, cuisine_preferences, price_range_min, price_range_max, distance_preference, created_at')
       .eq('id', decoded.userId)
