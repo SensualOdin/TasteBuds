@@ -1,6 +1,7 @@
 import { useGroups } from '@hooks';
 import {
   deleteGroup,
+  generateInviteCodeForGroup,
   leaveGroup,
   removeGroupMember,
   updateGroupMeta,
@@ -34,6 +35,7 @@ export default function GroupLobbyScreen() {
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   useEffect(() => {
     if (group) {
@@ -44,18 +46,40 @@ export default function GroupLobbyScreen() {
     }
   }, [group]);
 
-  const handleShareInvite = () => {
-    if (!group?.invite_code) {
-      showErrorToast({ title: 'No invite code yet', message: 'Refresh and try again.' });
-      return;
-    }
+  const handleShareInvite = async () => {
+    if (!group) return;
 
-    Share.share({
-      message: `Join my Taste Buds group "${group.name}" with code ${group.invite_code}.`,
-    }).catch((error) => {
+    setIsGeneratingCode(true);
+
+    try {
+      // If no invite code exists, generate one first
+      let inviteCode = group.invite_code;
+      if (!inviteCode) {
+        const updatedGroup = await generateInviteCodeForGroup(group.id);
+        inviteCode = updatedGroup.invite_code;
+        // Refresh the groups data to get the new invite code
+        await refetch();
+      }
+
+      if (!inviteCode) {
+        showErrorToast({ title: 'Unable to generate invite code', message: 'Please try again.' });
+        setIsGeneratingCode(false);
+        return;
+      }
+
+      // Share the invite code
+      Share.share({
+        message: `Join my Taste Buds group "${group.name}" with code ${inviteCode}.`,
+      }).catch((error) => {
+        console.error(error);
+        showErrorToast({ title: 'Unable to share', message: 'Please try again.' });
+      });
+    } catch (error) {
       console.error(error);
-      showErrorToast({ title: 'Unable to share', message: 'Please try again.' });
-    });
+      showErrorToast({ title: 'Unable to generate invite code', message: 'Please try again.' });
+    } finally {
+      setIsGeneratingCode(false);
+    }
   };
 
   const handleSaveSearch = async () => {
@@ -226,10 +250,12 @@ export default function GroupLobbyScreen() {
                   <AppText variant="headline">{group.name}</AppText>
                   {group.description ? <AppText tone="secondary">{group.description}</AppText> : null}
                   <AppText tone="muted">Invite Code: {group.invite_code ?? 'Unavailable'}</AppText>
-                  <Button label="Share Invite" variant="outline" onPress={handleShareInvite} />
-                  {isCreator ? (
-                    <Button label="Edit Details" variant="ghost" size="sm" onPress={() => setIsEditingMeta(true)} />
-                  ) : null}
+                  <Button
+                    label={isGeneratingCode ? 'Generating Code...' : 'Share Invite'}
+                    variant="outline"
+                    onPress={handleShareInvite}
+                    disabled={isGeneratingCode}
+                  />
                 </>
               )}
             </Surface>

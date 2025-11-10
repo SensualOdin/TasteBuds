@@ -168,3 +168,40 @@ export async function getGroupByInviteCode(inviteCode: string) {
 
   return (data as { id: string } | null)?.id ?? null;
 }
+
+export async function generateInviteCodeForGroup(groupId: string) {
+  // Generate a unique invite code
+  let attempts = 0;
+  let inviteCode: string | null = null;
+  let isUnique = false;
+
+  while (!isUnique && attempts < 10) {
+    inviteCode = generateInviteCode();
+    const existingGroupId = await getGroupByInviteCode(inviteCode);
+    
+    if (!existingGroupId || existingGroupId === groupId) {
+      isUnique = true;
+    } else {
+      attempts += 1;
+      inviteCode = null;
+    }
+  }
+
+  if (!isUnique || !inviteCode) {
+    throw new Error('Unable to generate unique invite code');
+  }
+
+  // Update the group with the new invite code
+  const { data, error } = await supabase
+    .from('groups')
+    .update({ invite_code: inviteCode })
+    .eq('id', groupId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Group;
+}

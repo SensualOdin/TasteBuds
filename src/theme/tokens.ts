@@ -1,25 +1,31 @@
 export const palette = {
-  primary: '#f2590d',
-  primaryDark: '#d44805',
-  primaryLight: '#ff7a32',
-  secondary: '#f20d0d',
-  success: '#16a34a',
-  warning: '#facc15',
-  danger: '#ef4444',
+  // Restaurant Match App - Brand Style Guide
+  // Primary Colors
+  primary: '#D7263D', // Imperial Red - Primary action buttons, Like/Swipe Right
+  primaryDark: '#8C1825', // Crimson Wine - Overlays, gradients, elevated backgrounds
+  primaryLight: '#E84A5F', // Lighter red variant
+  // Secondary Colors
+  secondary: '#E7C880', // Soft Gold - Highlights, premium indicators
+  champagneWhite: '#F2EFEA', // Champagne White - Primary text color
+  // Status Colors
+  success: '#10B981', // Green for success states
+  warning: '#F59E0B', // Amber for warnings
+  danger: '#D7263D', // Use Imperial Red for danger/errors
+  // Dark Background Palette - Luxury dark mode
   neutral0: '#ffffff',
-  neutral25: '#fdfbfa',
-  neutral50: '#f8f6f5',
-  neutral100: '#f1edea',
-  neutral200: '#e4dbd4',
-  neutral300: '#d0c1b7',
-  neutral400: '#a89281',
-  neutral500: '#7b6556',
-  neutral600: '#5c4b3f',
-  neutral700: '#3d312a',
-  neutral800: '#221610',
-  neutral900: '#121212',
-  overlayDark: 'rgba(0, 0, 0, 0.55)',
-  overlayLight: 'rgba(18, 13, 11, 0.12)',
+  neutral25: '#F2EFEA', // Champagne White
+  neutral50: '#E5E5E5',
+  neutral100: '#D4D4D4',
+  neutral200: '#A3A3A3',
+  neutral300: '#737373',
+  neutral400: '#525252',
+  neutral500: '#404040',
+  neutral600: '#2A2A2A',
+  neutral700: '#1F1F1F',
+  neutral800: '#151518', // Velvet Black
+  neutral900: '#0E0F10', // Midnight Graphite - Global app background
+  overlayDark: 'rgba(140, 24, 37, 0.8)', // Crimson Wine overlay
+  overlayLight: 'rgba(215, 38, 61, 0.1)', // Imperial Red tinted overlay
 };
 
 export const spacing = {
@@ -91,6 +97,7 @@ export type ThemeColors = {
   primary: string;
   primaryMuted: string;
   primaryContrast: string;
+  secondary: string;
   danger: string;
   success: string;
   warning: string;
@@ -98,66 +105,70 @@ export type ThemeColors = {
 };
 
 export const lightColors: ThemeColors = {
-  background: palette.neutral50,
-  backgroundSecondary: palette.neutral25,
-  surface: palette.neutral0,
-  surfaceMuted: '#f5efeb',
-  surfaceElevated: '#ffffff',
-  border: 'rgba(22, 15, 12, 0.08)',
-  borderStrong: 'rgba(22, 15, 12, 0.18)',
-  text: '#1a1512',
-  textSecondary: '#5c4b3f',
-  textMuted: '#9a8678',
-  textInverse: palette.neutral0,
-  primary: palette.primary,
+  // Light mode - clean and elegant
+  background: palette.champagneWhite, // Champagne White background
+  backgroundSecondary: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceMuted: '#F8F8F8',
+  surfaceElevated: '#FFFFFF',
+  border: 'rgba(0, 0, 0, 0.1)',
+  borderStrong: 'rgba(0, 0, 0, 0.2)',
+  text: '#0E0F10', // Midnight Graphite for text
+  textSecondary: '#404040',
+  textMuted: '#737373',
+  textInverse: palette.champagneWhite, // Champagne White on dark
+  primary: palette.primary, // Imperial Red
   primaryMuted: palette.primaryLight,
-  primaryContrast: palette.neutral0,
-  danger: palette.danger,
+  primaryContrast: palette.champagneWhite, // Champagne White text on red
+  secondary: palette.secondary, // Soft Gold
+  danger: palette.danger, // Imperial Red
   success: palette.success,
   warning: palette.warning,
   overlay: palette.overlayLight,
 };
 
 export const darkColors: ThemeColors = {
-  background: palette.neutral900,
-  backgroundSecondary: '#1a100b',
-  surface: palette.neutral800,
-  surfaceMuted: '#2c1f18',
-  surfaceElevated: '#33231b',
-  border: 'rgba(255, 241, 231, 0.08)',
-  borderStrong: 'rgba(255, 241, 231, 0.16)',
-  text: '#f2eeeb',
-  textSecondary: '#d6c4ba',
-  textMuted: 'rgba(255, 241, 231, 0.6)',
-  textInverse: palette.neutral900,
-  primary: palette.primaryLight,
-  primaryMuted: '#f07d3d',
-  primaryContrast: palette.neutral900,
-  danger: palette.danger,
+  // Dark mode - Luxury dark mode with brand colors
+  background: palette.neutral900, // Midnight Graphite - Global app background
+  backgroundSecondary: palette.neutral800, // Velvet Black
+  surface: palette.neutral800, // Velvet Black
+  surfaceMuted: '#1F1F1F', // Slightly lighter than Velvet Black
+  surfaceElevated: palette.primaryDark, // Crimson Wine - Elevated backgrounds
+  border: 'rgba(215, 38, 61, 0.2)', // Imperial Red tinted borders
+  borderStrong: 'rgba(215, 38, 61, 0.4)',
+  text: palette.champagneWhite, // Champagne White - Primary text color
+  textSecondary: '#D4D4D4',
+  textMuted: 'rgba(242, 239, 234, 0.6)', // Champagne White with opacity
+  textInverse: '#0E0F10', // Midnight Graphite on light
+  primary: palette.primary, // Imperial Red - Primary action buttons
+  primaryMuted: palette.primaryLight,
+  primaryContrast: palette.champagneWhite, // Champagne White text on red
+  secondary: palette.secondary, // Soft Gold - Highlights, premium indicators
+  danger: palette.danger, // Imperial Red
   success: palette.success,
   warning: palette.warning,
-  overlay: palette.overlayDark,
+  overlay: palette.overlayDark, // Crimson Wine overlay
 };
 
 export const shadows = {
   xs: {
-    shadowColor: 'rgba(0,0,0,0.1)',
+    shadowColor: 'rgba(215, 38, 61, 0.1)', // Subtle Imperial Red glow
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 1,
   },
   sm: {
-    shadowColor: 'rgba(0,0,0,0.12)',
+    shadowColor: 'rgba(215, 38, 61, 0.15)', // Imperial Red glow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
   md: {
-    shadowColor: 'rgba(0,0,0,0.16)',
+    shadowColor: 'rgba(140, 24, 37, 0.25)', // Crimson Wine glow for depth
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 6,
   },
