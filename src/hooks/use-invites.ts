@@ -1,4 +1,4 @@
-import { fetchMatchHistory, fetchPendingInvites, respondToInvite } from '@services';
+import { fetchPendingInvites, respondToInvite } from '@services';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function usePendingInvites(email?: string) {
@@ -6,14 +6,9 @@ export function usePendingInvites(email?: string) {
     queryKey: ['pending-invites', email],
     queryFn: () => fetchPendingInvites(email!),
     enabled: Boolean(email),
-  });
-}
-
-export function useMatchHistory(userId?: string) {
-  return useQuery({
-    queryKey: ['match-history', userId],
-    queryFn: () => fetchMatchHistory(userId!),
-    enabled: Boolean(userId),
+    staleTime: 1 * 60 * 1000, // 1 minute - invites can change more frequently
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 30 * 1000, // Check for new invites every 30 seconds
   });
 }
 

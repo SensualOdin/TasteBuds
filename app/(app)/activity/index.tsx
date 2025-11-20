@@ -2,10 +2,12 @@ import { useMatchHistory, usePendingInvites, useRespondToInvite } from '@hooks';
 import { useSessionStore } from '@state';
 import { useAppTheme } from '@theme';
 import { AppText, Button, Surface } from '@ui';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ActivityScreen() {
+  const router = useRouter();
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
   const user = useSessionStore((state) => state.user);
@@ -66,7 +68,11 @@ export default function ActivityScreen() {
               <Surface key={match.id} variant="default" padding="lg" radius="xl" style={{ gap: spacing.sm }}>
                 <AppText variant="title">{match.restaurants.name}</AppText>
                 <AppText tone="secondary">Matched on {new Date(match.matched_at).toLocaleDateString()}</AppText>
-                <Button label="View Details" variant="outline" />
+                <Button
+                  label="View Details"
+                  variant="outline"
+                  onPress={() => router.push(`/(app)/restaurants/${match.restaurants.id}`)}
+                />
               </Surface>
             ))
           ) : (
@@ -74,7 +80,12 @@ export default function ActivityScreen() {
               <AppText tone="secondary" align="center">
                 Swipe with your groups to build up your match history.
               </AppText>
-              <Button label="Browse Matches" variant="outline" style={{ marginTop: spacing.lg }} />
+              <Button
+                label="Browse Matches"
+                variant="outline"
+                style={{ marginTop: spacing.lg }}
+                onPress={() => router.push('/(app)/matches')}
+              />
             </Surface>
           )}
         </View>

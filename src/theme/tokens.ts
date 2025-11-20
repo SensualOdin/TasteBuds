@@ -1,31 +1,32 @@
 export const palette = {
   // Restaurant Match App - Brand Style Guide
   // Primary Colors
-  primary: '#D7263D', // Imperial Red - Primary action buttons, Like/Swipe Right
-  primaryDark: '#8C1825', // Crimson Wine - Overlays, gradients, elevated backgrounds
-  primaryLight: '#E84A5F', // Lighter red variant
+  primary: '#E11D48', // Vibrant Rose/Red - More pop than Imperial Red
+  primaryDark: '#BE123C', // Rose 700
+  primaryLight: '#FB7185', // Rose 400
   // Secondary Colors
-  secondary: '#E7C880', // Soft Gold - Highlights, premium indicators
-  champagneWhite: '#F2EFEA', // Champagne White - Primary text color
+  secondary: '#F59E0B', // Amber 500 - Warm Gold
+  secondaryLight: '#FCD34D', // Amber 300
+  champagneWhite: '#FAFAF9', // Warm White
   // Status Colors
-  success: '#10B981', // Green for success states
-  warning: '#F59E0B', // Amber for warnings
-  danger: '#D7263D', // Use Imperial Red for danger/errors
+  success: '#10B981', // Emerald 500
+  warning: '#F59E0B', // Amber 500
+  danger: '#EF4444', // Red 500
   // Dark Background Palette - Luxury dark mode
   neutral0: '#ffffff',
-  neutral25: '#F2EFEA', // Champagne White
-  neutral50: '#E5E5E5',
-  neutral100: '#D4D4D4',
-  neutral200: '#A3A3A3',
-  neutral300: '#737373',
-  neutral400: '#525252',
-  neutral500: '#404040',
-  neutral600: '#2A2A2A',
-  neutral700: '#1F1F1F',
-  neutral800: '#151518', // Velvet Black
-  neutral900: '#0E0F10', // Midnight Graphite - Global app background
-  overlayDark: 'rgba(140, 24, 37, 0.8)', // Crimson Wine overlay
-  overlayLight: 'rgba(215, 38, 61, 0.1)', // Imperial Red tinted overlay
+  neutral25: '#FAFAF9',
+  neutral50: '#F5F5F4',
+  neutral100: '#E7E5E4',
+  neutral200: '#D6D3D1',
+  neutral300: '#A8A29E',
+  neutral400: '#78716C',
+  neutral500: '#57534E',
+  neutral600: '#44403C',
+  neutral700: '#292524',
+  neutral800: '#1C1917', // Warm Dark
+  neutral900: '#0C0A09', // Almost Black
+  overlayDark: 'rgba(12, 10, 9, 0.8)',
+  overlayLight: 'rgba(225, 29, 72, 0.1)',
 };
 
 export const spacing = {
@@ -106,22 +107,22 @@ export type ThemeColors = {
 
 export const lightColors: ThemeColors = {
   // Light mode - clean and elegant
-  background: palette.champagneWhite, // Champagne White background
+  background: '#FAFAF9', // Warm Stone 50
   backgroundSecondary: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceMuted: '#F8F8F8',
+  surfaceMuted: '#F5F5F4',
   surfaceElevated: '#FFFFFF',
-  border: 'rgba(0, 0, 0, 0.1)',
-  borderStrong: 'rgba(0, 0, 0, 0.2)',
-  text: '#0E0F10', // Midnight Graphite for text
-  textSecondary: '#404040',
-  textMuted: '#737373',
-  textInverse: palette.champagneWhite, // Champagne White on dark
-  primary: palette.primary, // Imperial Red
+  border: '#E7E5E4',
+  borderStrong: '#D6D3D1',
+  text: '#1C1917', // Warm Dark
+  textSecondary: '#57534E',
+  textMuted: '#A8A29E',
+  textInverse: '#FAFAF9',
+  primary: palette.primary,
   primaryMuted: palette.primaryLight,
-  primaryContrast: palette.champagneWhite, // Champagne White text on red
-  secondary: palette.secondary, // Soft Gold
-  danger: palette.danger, // Imperial Red
+  primaryContrast: '#FFFFFF',
+  secondary: palette.secondary,
+  danger: palette.danger,
   success: palette.success,
   warning: palette.warning,
   overlay: palette.overlayLight,
@@ -129,25 +130,25 @@ export const lightColors: ThemeColors = {
 
 export const darkColors: ThemeColors = {
   // Dark mode - Luxury dark mode with brand colors
-  background: palette.neutral900, // Midnight Graphite - Global app background
-  backgroundSecondary: palette.neutral800, // Velvet Black
-  surface: palette.neutral800, // Velvet Black
-  surfaceMuted: '#1F1F1F', // Slightly lighter than Velvet Black
-  surfaceElevated: palette.primaryDark, // Crimson Wine - Elevated backgrounds
-  border: 'rgba(215, 38, 61, 0.2)', // Imperial Red tinted borders
-  borderStrong: 'rgba(215, 38, 61, 0.4)',
-  text: palette.champagneWhite, // Champagne White - Primary text color
-  textSecondary: '#D4D4D4',
-  textMuted: 'rgba(242, 239, 234, 0.6)', // Champagne White with opacity
-  textInverse: '#0E0F10', // Midnight Graphite on light
-  primary: palette.primary, // Imperial Red - Primary action buttons
-  primaryMuted: palette.primaryLight,
-  primaryContrast: palette.champagneWhite, // Champagne White text on red
-  secondary: palette.secondary, // Soft Gold - Highlights, premium indicators
-  danger: palette.danger, // Imperial Red
+  background: '#0C0A09', // Warm Black
+  backgroundSecondary: '#1C1917',
+  surface: '#1C1917', // Dark Stone 900
+  surfaceMuted: '#292524', // Dark Stone 800
+  surfaceElevated: '#292524',
+  border: '#292524',
+  borderStrong: '#44403C',
+  text: '#FAFAF9', // Warm White
+  textSecondary: '#A8A29E', // Warm Gray
+  textMuted: '#57534E',
+  textInverse: '#1C1917',
+  primary: palette.primary,
+  primaryMuted: palette.primaryDark,
+  primaryContrast: '#FFFFFF',
+  secondary: palette.secondary,
+  danger: palette.danger,
   success: palette.success,
   warning: palette.warning,
-  overlay: palette.overlayDark, // Crimson Wine overlay
+  overlay: palette.overlayDark,
 };
 
 export const shadows = {

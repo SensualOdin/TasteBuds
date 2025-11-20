@@ -55,6 +55,8 @@ export default function AppTabsLayout() {
           tabBarIcon: ({ color }) => <Icon name="person" tone="default" color={color} />,
         }}
       />
+      <Tabs.Screen name="restaurants/[restaurantId]" options={{ href: null }} />
+      <Tabs.Screen name="groups/[groupId]" options={{ href: null }} />
     </Tabs>
   );
 }

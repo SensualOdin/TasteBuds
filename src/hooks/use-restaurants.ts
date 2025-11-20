@@ -27,7 +27,9 @@ export function useNearbyRestaurants({
         priceMax,
       }),
     enabled: enabled && Boolean(zipCode && radiusMiles),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
+    retry: false, // Don't retry on failure
   });
 }
 

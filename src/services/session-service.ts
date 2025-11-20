@@ -77,6 +77,8 @@ export async function recordSwipe({
   restaurantId: string;
   direction: 'left' | 'right';
 }) {
+  console.log('[SessionService] Recording swipe:', { sessionId, userId, restaurantId, direction });
+  
   const { data, error } = await supabase
     .from('swipes')
     .insert({ session_id: sessionId, user_id: userId, restaurant_id: restaurantId, direction })
@@ -84,9 +86,31 @@ export async function recordSwipe({
     .single();
 
   if (error) {
+    // If duplicate swipe (code 23505), just log warning and return null or existing data
+    // We can't easily return existing data without another query, but for the UI we can treat it as success
+    if (error.code === '23505') {
+      console.warn('[SessionService] Swipe already exists, skipping duplicate insert.');
+      // Return a mock object or handle gracefully. The UI just needs to know it didn't fail critically.
+      // Returning a dummy swipe object to satisfy type requirements if possible, or just throw if strict.
+      // Better approach: Upsert or ignore.
+      
+      // Let's try fetching the existing swipe to return it
+      const { data: existingSwipe } = await supabase
+        .from('swipes')
+        .select()
+        .match({ session_id: sessionId, user_id: userId, restaurant_id: restaurantId })
+        .single();
+        
+      if (existingSwipe) {
+        return existingSwipe as Swipe;
+      }
+    }
+
+    console.error('[SessionService] Failed to record swipe:', error);
     throw error;
   }
 
+  console.log('[SessionService] Swipe recorded successfully:', data.id);
   return data as Swipe;
 }
 

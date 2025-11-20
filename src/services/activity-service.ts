@@ -1,5 +1,6 @@
 import { Tables } from '@lib/database.types';
 import { supabase } from '@lib/supabase';
+import { fetchGroupsForUser } from './group-service';
 
 export type Invite = {
   id: string;
@@ -40,10 +41,15 @@ export async function respondToInvite({
 }
 
 export async function fetchMatchHistory(userId: string) {
+  const groups = await fetchGroupsForUser(userId);
+  const groupIds = groups.map((g) => g.id);
+
+  if (groupIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from('matches')
-    .select('*, sessions(group_id, created_at), restaurants(*)')
-    .eq('sessions.created_by', userId)
+    .select('*, sessions!inner(group_id, created_at), restaurants(*)')
+    .in('sessions.group_id', groupIds)
     .order('matched_at', { ascending: false });
 
   if (error) {

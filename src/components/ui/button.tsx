@@ -1,4 +1,5 @@
 import { useTheme } from '@theme';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode, useMemo } from 'react';
 import {
   Pressable,
@@ -9,8 +10,11 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { AppText } from './text';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type ButtonSize = 'sm' | 'md' | 'lg';
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -53,7 +57,7 @@ export function Button({
     const palette = theme.colors;
     const stylesByVariant: Record<ButtonVariant, ViewStyle> = {
       primary: {
-        backgroundColor: palette.primary,
+        backgroundColor: 'transparent', // Using gradient instead
         borderColor: 'transparent',
       },
       secondary: {
@@ -87,42 +91,95 @@ export function Button({
 
   const { height, paddingHorizontal, textVariant } = sizeConfig[size];
 
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, { damping: 10, stiffness: 300 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       android_ripple={{ color: theme.colors.overlay }}
       disabled={disabled}
-      style={({ pressed }) => [
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
         styles.button,
         {
           height,
           paddingHorizontal,
           borderRadius: theme.radii.lg,
-          opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+          opacity: disabled ? 0.5 : 1, // Removed pressed opacity logic from here as we use scale
           borderWidth: variant === 'outline' || variant === 'secondary' ? 1 : 0,
         },
         baseStyle[variant],
         style,
+        animatedStyle,
       ]}
       {...rest}
     >
-      {({ pressed }) => (
-        <View style={[styles.content, contentStyle]}>
-          {leadingIcon ? <View style={styles.icon}>{leadingIcon}</View> : null}
-          {label ? (
-            <AppText
-              variant={textVariant}
-              tone={textTone}
-              weight="semibold"
-              style={[styles.label, textStyle, pressed && variant === 'ghost' ? { opacity: 0.85 } : null]}
+      {({ pressed }) => {
+        const content = (
+          <View style={[styles.content, contentStyle]}>
+            {leadingIcon ? <View style={styles.icon}>{leadingIcon}</View> : null}
+            {label ? (
+              <AppText
+                variant={textVariant}
+                tone={textTone}
+                weight="semibold"
+                style={[styles.label, textStyle, pressed && variant === 'ghost' ? { opacity: 0.6 } : null]}
+              >
+                {label}
+              </AppText>
+            ) : children}
+            {trailingIcon ? <View style={styles.icon}>{trailingIcon}</View> : null}
+          </View>
+        );
+
+        if (variant === 'primary' && !disabled) {
+          return (
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryMuted]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: theme.radii.lg, justifyContent: 'center' }]}
             >
-              {label}
-            </AppText>
-          ) : children}
-          {trailingIcon ? <View style={styles.icon}>{trailingIcon}</View> : null}
-        </View>
-      )}
-    </Pressable>
+              {content}
+            </LinearGradient>
+          );
+        }
+        
+        if (variant === 'primary' && disabled) {
+           return (
+            <View
+              style={[
+                 StyleSheet.absoluteFill, 
+                 { 
+                   backgroundColor: theme.colors.surfaceMuted, 
+                   borderRadius: theme.radii.lg, 
+                   justifyContent: 'center' 
+                 }
+              ]}
+            >
+              {content}
+            </View>
+           )
+        }
+
+        return content;
+      }}
+    </AnimatedPressable>
   );
 }
 

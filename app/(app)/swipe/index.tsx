@@ -1,10 +1,11 @@
-import { useGroups, useNearbyRestaurants, useSaveRestaurants } from '@hooks';
+import { useActiveSession, useCreateSession, useGroups, useNearbyRestaurants, useRecordSwipe, useSaveRestaurants } from '@hooks';
+import { addGroupMember, updateUserProfile } from '@services';
 import { Json } from '@lib/database.types';
 import { useSessionStore } from '@state';
 import { useAppTheme } from '@theme';
 import { AppText, Button, Icon, Surface } from '@ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 /* eslint-disable import/default */
@@ -59,20 +60,140 @@ export default function SwipeScreen() {
   const { groupId } = useLocalSearchParams<{ groupId?: string }>();
   const user = useSessionStore((state) => state.user);
   const { data: groups = [] } = useGroups(user?.id);
+  const { data: activeSession, isLoading: isLoadingSession } = useActiveSession(groupId);
+  const { mutate: createSession, isPending: isCreatingSession } = useCreateSession();
+  const { mutate: recordSwipe } = useRecordSwipe();
   const [index, setIndex] = useState(0);
+  const sessionCreationAttempted = useRef(false);
+
+  useEffect(() => {
+    if (activeSession) {
+      console.log('[SwipeScreen] Active session found:', activeSession.id);
+    } else if (!isLoadingSession) {
+      console.log('[SwipeScreen] No active session found.');
+    }
+  }, [activeSession, isLoadingSession]);
+
+  useEffect(() => {
+    // Reset the attempt flag when the group ID changes
+    sessionCreationAttempted.current = false;
+  }, [groupId]);
+
+
+
+  const handleStartSession = async () => {
+    if (!group || !user || !group.search_zip || !group.search_radius) {
+      console.warn('[SwipeScreen] Cannot start session. Missing data:', {
+        hasGroup: !!group,
+        hasUser: !!user,
+        zip: group?.search_zip,
+        radius: group?.search_radius,
+      });
+      return;
+    }
+
+    try {
+      // Ensure user profile exists in public.users to satisfy RLS
+      await updateUserProfile(user.id, {
+        email: user.email || '',
+        displayName: user.displayName || undefined,
+      });
+
+      // Check if user is already a member
+      // Note: Database trigger automatically adds creator as member, but we check anyway
+      const isMember = group.group_members?.some((m) => m.user_id === user.id);
+      
+      // If user is creator, trigger should have added them automatically
+      // If not a member and not creator, they need to join via invite code
+      if (!isMember && group.created_by !== user.id) {
+        throw new Error('You must be a member of this group to start a session. Please join the group first.');
+      }
+
+      // Small delay to ensure any async database operations complete
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      console.log('[SwipeScreen] Creating session for group:', group.id);
+      createSession(
+        {
+          groupId: group.id,
+          createdBy: user.id,
+          latitude: 0,
+          longitude: 0,
+          searchRadius: group.search_radius,
+        },
+        {
+          onSuccess: (data) => {
+            console.log('[SwipeScreen] Session created successfully:', data.id);
+            // Reset the attempt flag so we can try again if needed
+            sessionCreationAttempted.current = false;
+          },
+          onError: (error) => {
+            console.error('[SwipeScreen] Failed to create session:', error);
+            // Reset the attempt flag on error so user can retry
+            sessionCreationAttempted.current = false;
+          },
+        },
+      );
+    } catch (error) {
+      console.error('[SwipeScreen] Failed to ensure user profile/membership:', error);
+      sessionCreationAttempted.current = false;
+    }
+  };
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotate = useSharedValue(0);
+  const cardScale = useSharedValue(0.9);
+  const cardOpacity = useSharedValue(0);
+
+  // Derived values for overlays
+  const likeOpacity = useAnimatedStyle(() => {
+    return {
+      opacity: translateX.value > SWIPE_THRESHOLD / 2 ? Math.min(translateX.value / (SWIPE_THRESHOLD * 1.5), 1) : 0,
+    };
+  });
+
+  const nopeOpacity = useAnimatedStyle(() => {
+    return {
+      opacity: translateX.value < -SWIPE_THRESHOLD / 2 ? Math.min(Math.abs(translateX.value) / (SWIPE_THRESHOLD * 1.5), 1) : 0,
+    };
+  });
 
   const group = useMemo(() => groups.find((g) => g.id === groupId), [groups, groupId]);
 
   const { data: restaurants = [], isLoading, error, refetch } = useNearbyRestaurants({
     zipCode: group?.search_zip ?? undefined,
     radiusMiles: group?.search_radius ?? undefined,
-    enabled: Boolean(group?.search_zip && group?.search_radius),
+    enabled: Boolean(group?.search_zip && group?.search_radius && activeSession),
   });
 
   const { mutateAsync: saveRestaurants } = useSaveRestaurants();
+
+  // Animate card entrance when index changes
+  useEffect(() => {
+    cardScale.value = 0.9;
+    cardOpacity.value = 0;
+    
+    cardScale.value = withSpring(1, { damping: 12, stiffness: 90 });
+    cardOpacity.value = withSpring(1, { damping: 20, stiffness: 200 });
+  }, [index, cardScale, cardOpacity]);
+
+  useEffect(() => {
+    // Auto-create session if none exists and user is creator
+    if (
+      !isLoadingSession &&
+      !activeSession &&
+      !isCreatingSession &&
+      !sessionCreationAttempted.current &&
+      group &&
+      group.created_by === user?.id &&
+      group.search_zip &&
+      group.search_radius
+    ) {
+      console.log('[SwipeScreen] Auto-creating session...');
+      sessionCreationAttempted.current = true;
+      handleStartSession();
+    }
+  }, [activeSession, isLoadingSession, isCreatingSession, group, user]);
 
   useEffect(() => {
     if (restaurants.length > 0) {
@@ -83,13 +204,46 @@ export default function SwipeScreen() {
   }, [restaurants, saveRestaurants]);
 
   const restaurant = useMemo(() => restaurants[index], [restaurants, index]);
+  const nextRestaurant = useMemo(() => restaurants[index + 1], [restaurants, index]);
 
   const handleSwipeComplete = useCallback(
     (direction: 'left' | 'right') => {
-      console.log('Swiped', direction, restaurant?.name);
+      console.log('[SwipeScreen] Swipe complete:', {
+        direction,
+        restaurantName: restaurant?.name,
+        hasSession: !!activeSession,
+        hasUser: !!user,
+        hasRestaurant: !!restaurant,
+      });
+
+      if (activeSession && user && restaurant) {
+        recordSwipe(
+          {
+            sessionId: activeSession.id,
+            userId: user.id,
+            restaurantId: restaurant.id,
+            direction,
+          },
+          {
+            onSuccess: () => {
+              console.log('[SwipeScreen] Swipe saved successfully:', direction, restaurant.name);
+            },
+            onError: (err) => {
+              console.error('[SwipeScreen] Failed to record swipe:', err);
+            },
+          },
+        );
+      } else {
+        console.warn(
+          '[SwipeScreen] Cannot record swipe. Missing:',
+          !activeSession ? 'session' : '',
+          !user ? 'user' : '',
+          !restaurant ? 'restaurant' : '',
+        );
+      }
       setIndex((prev) => Math.min(prev + 1, restaurants.length));
     },
-    [restaurants.length, restaurant],
+    [restaurants.length, restaurant, activeSession, user, recordSwipe],
   );
 
   const gesture = useMemo(
@@ -112,6 +266,8 @@ export default function SwipeScreen() {
           if (shouldDismiss) {
             const direction = event.translationX > 0 ? 'right' : 'left';
             const targetX = Math.sign(event.translationX) * width * 1.5;
+            const targetRotate = Math.sign(event.translationX) * 45; // More dramatic rotation on exit
+
             translateX.value = withSpring(targetX, { damping: 15, stiffness: 100 }, () => {
               // Reset values in the animation callback (runs on UI thread)
               translateX.value = 0;
@@ -120,7 +276,7 @@ export default function SwipeScreen() {
               runOnJS(handleSwipeComplete)(direction as 'left' | 'right');
             });
             translateY.value = withSpring(event.translationY * 0.3, { damping: 15 });
-            rotate.value = withSpring(event.translationX / 15, { damping: 15 });
+            rotate.value = withSpring(targetRotate, { damping: 15 });
           } else {
             translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
             translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
@@ -136,7 +292,9 @@ export default function SwipeScreen() {
       { translateX: translateX.value },
       { translateY: translateY.value },
       { rotate: `${rotate.value}deg` },
+      { scale: cardScale.value }
     ],
+    opacity: cardOpacity.value,
   }));
 
   if (!groupId) {
@@ -169,6 +327,34 @@ export default function SwipeScreen() {
               The group host needs to set a zip code and search radius before you can swipe.
             </AppText>
             <Button label="Back to Group" variant="primary" onPress={() => router.back()} />
+          </Surface>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!activeSession) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.container, { padding: spacing.lg, gap: spacing.lg }]}>
+          <Surface variant="muted" padding="lg" radius="xl" style={styles.emptyState}>
+            <AppText variant="headline" align="center">
+              {isLoadingSession ? 'Loading...' : isCreatingSession ? 'Starting Session...' : 'Ready to Eat?'}
+            </AppText>
+            <AppText tone="secondary" align="center">
+              {isLoadingSession
+                ? 'Checking for active sessions...'
+                : isCreatingSession
+                  ? 'Setting up the group...'
+                  : 'Start a new swiping session to find a match with your group.'}
+            </AppText>
+            {(isLoadingSession || isCreatingSession) && (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.md }} />
+            )}
+            {!isCreatingSession && !isLoadingSession && (
+              <Button label="Start Session" variant="primary" onPress={handleStartSession} />
+            )}
+            <Button label="Back" variant="ghost" onPress={() => router.back()} />
           </Surface>
         </View>
       </SafeAreaView>
@@ -209,16 +395,57 @@ export default function SwipeScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}> 
-      <View style={[styles.container, { padding: spacing.lg, gap: spacing.lg }]}> 
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { padding: spacing.lg, gap: spacing.lg }]}>
         <AppText variant="headline">Swipe Restaurants</AppText>
         <AppText tone="secondary">
           {group.name} • {restaurants.length} found
         </AppText>
         <View style={styles.deckContainer}>
+          {/* Render next card first (bottom of stack) */}
+          {nextRestaurant && (
+            <View style={[styles.card, styles.nextCard]}>
+              <Surface variant="default" padding="none" radius="xl" style={styles.cardSurface}>
+                {nextRestaurant.photo_urls && nextRestaurant.photo_urls.length > 0 ? (
+                  <Image
+                    source={{ uri: nextRestaurant.photo_urls[0] }}
+                    style={styles.restaurantImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.restaurantImage, styles.imagePlaceholder, { backgroundColor: colors.surface }]}>
+                    <Icon name="restaurant" tone="muted" size={64} />
+                  </View>
+                )}
+                <View style={{ padding: spacing.lg, gap: spacing.xs }}>
+                  <AppText variant="title" weight="bold" style={{ fontSize: 24 }}>
+                    {nextRestaurant.name}
+                  </AppText>
+                  {nextRestaurant.cuisine && nextRestaurant.cuisine.length > 0 ? (
+                    <AppText tone="secondary">{nextRestaurant.cuisine.join(' • ')}</AppText>
+                  ) : null}
+                </View>
+              </Surface>
+            </View>
+          )}
+
           {restaurant ? (
             <GestureDetector gesture={gesture}>
               <Animated.View style={[styles.card, animatedStyle]}>
+                {/* Like Overlay */}
+                <Animated.View style={[styles.overlayLabel, styles.likeLabel, likeOpacity]}>
+                  <AppText variant="display" weight="bold" style={{ color: colors.success, transform: [{ rotate: '-15deg' }] }}>
+                    LIKE
+                  </AppText>
+                </Animated.View>
+
+                {/* Nope Overlay */}
+                <Animated.View style={[styles.overlayLabel, styles.nopeLabel, nopeOpacity]}>
+                  <AppText variant="display" weight="bold" style={{ color: colors.danger, transform: [{ rotate: '15deg' }] }}>
+                    NOPE
+                  </AppText>
+                </Animated.View>
+
                 <Surface variant="default" padding="none" radius="xl" style={styles.cardSurface}>
                   {restaurant.photo_urls && restaurant.photo_urls.length > 0 ? (
                     <Image
@@ -481,6 +708,12 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
+    position: 'absolute', // Allow stacking
+  },
+  nextCard: {
+    transform: [{ scale: 0.95 }, { translateY: 10 }],
+    opacity: 0.5, // Dim background card slightly
+    zIndex: -1,
   },
   cardSurface: {
     flex: 1,
@@ -575,5 +808,24 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     gap: 12,
+  },
+  overlayLabel: {
+    position: 'absolute',
+    top: 40,
+    zIndex: 100,
+    borderWidth: 4,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  likeLabel: {
+    left: 40,
+    borderColor: '#10B981', // Success color
+    transform: [{ rotate: '-15deg' }],
+  },
+  nopeLabel: {
+    right: 40,
+    borderColor: '#EF4444', // Danger color
+    transform: [{ rotate: '15deg' }],
   },
 });

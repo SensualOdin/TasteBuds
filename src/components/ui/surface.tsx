@@ -39,11 +39,12 @@ export function Surface({
     backgroundColor: backgroundMap[variant],
     borderRadius: theme.radii[radius],
     padding: paddingValue,
-    borderWidth: border ? StyleSheet.hairlineWidth : 0,
-    borderColor: border ? theme.colors.border : 'transparent',
+    borderWidth: border || variant === 'muted' ? StyleSheet.hairlineWidth : 0,
+    borderColor: border ? theme.colors.border : variant === 'muted' ? theme.colors.border : 'transparent',
+    overflow: 'hidden', // Ensure content stays within rounded corners
   };
 
-  const elevationStyle = variant === 'elevated' ? theme.shadows.sm : null;
+  const elevationStyle = variant === 'elevated' ? theme.shadows.md : null; // Use medium shadow for better depth
 
   return (
     <View style={[styles.surface, baseStyle, elevationStyle, style]} {...rest}>
